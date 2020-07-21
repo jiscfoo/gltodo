@@ -1,0 +1,75 @@
+#!/usr/bin/env perl
+
+use strict;
+use JSON;
+use LWP;
+use Config::Tiny;
+use Getopt::Long;
+use Data::Dumper;
+
+my $config_file = "$ENV{HOME}/.gltodo.conf";
+$config_file = "$ENV{PWD}/.gltodo.conf" if -e ".gltodo.conf";
+
+# print "Selected config: $config_file\n";
+my $c = Config::Tiny->read($config_file);
+# print Dumper($c);
+
+my $ua = LWP::UserAgent->new;
+
+sub assert($) {
+    die "Assertion failed" unless shift;
+}
+
+sub get_todo($$$) {
+    my ($profile, $url, $token) = @_;
+
+    assert($token);
+    assert($url);
+
+    my @request_headers = (
+        "PRIVATE-TOKEN" => $token,
+    );
+
+    my $resp = $ua->get(
+        $url . "/api/v4/todos",
+        @request_headers,
+    );
+
+    if ($resp->is_success) {
+        my $todo = from_json($resp->decoded_content);
+
+        foreach my $item (@{$todo}) {
+            format STDOUT =
+@<<<<<<<<< @>>> @<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< @<<<<<<< @<<<<<<<<<<
+$profile, $item->{id}, $item->{project}->{name}, $item->{target}->{title}, $item->{target_type}, $item->{state}, $item->{updated_at}
+.
+            write;
+        }
+    } else {
+        die "Error: " . $resp->status_line;
+    }
+}
+
+my $url;
+my $token;
+my $profile;
+GetOptions(
+    "url=s" => \$url,
+    "token=s" => \$token,
+    "profile=s" => \$profile,
+);
+
+format STDOUT_TOP =
+Profile    Id   Project      Title                                    Type     Status
+---------- ---- ------------ ---------------------------------------- -------- -----------
+.
+
+
+if ($profile) {
+    get_todo($profile, $c->{$profile}->{url}, $c->{$profile}->{token});
+} else {
+    foreach my $profile (keys %$c) {
+        next if $profile eq '_';
+        get_todo($profile, $c->{$profile}->{url}, $c->{$profile}->{token});
+    }
+}
