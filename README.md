@@ -1,1 +1,7 @@
-apk add perl perl-lwp-protocol-https perl-json-xs
+Running
+=======
+
+```bash
+docker run --rm -ti -v "${HOME}/.gltodo.conf:/.gltodo.conf" gltodo
+```
+
